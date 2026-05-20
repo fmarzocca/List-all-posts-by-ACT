@@ -1,4 +1,9 @@
 <?php
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 /*****************************************************************
 *
 * 
@@ -158,7 +163,7 @@ function ACT_get_child_cats($cat, $k, $level)
 
 function ACT_processform()
 {
-    if ( isset( $_POST['ACT_nonce'] ) && wp_verify_nonce( $_POST['ACT_nonce'], 'ACT_form_shortcode' ) ) {
+    if ( isset( $_POST['ACT_nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['ACT_nonce'] ) ), 'ACT_form_shortcode' ) ) {
         // Nonce is valid, process the form data
        } else {
         // Nonce is not valid, handle the error
@@ -169,20 +174,20 @@ function ACT_processform()
     /* Show List */
     $showlist= array();
     if(array_key_exists( 'show_cat' , $_POST)) {
-        $sanitized_value = prefix_sanitize_checkbox($_POST['show_cat'], '1');
+        $sanitized_value = prefix_sanitize_checkbox( sanitize_text_field( wp_unslash( $_POST['show_cat'] ) ), '1' );
         if($sanitized_value =='1') {
             $showlist[0] ="Category";
         }
     }
     if(array_key_exists( 'show_aut' , $_POST)) {
-        $sanitized_value = prefix_sanitize_checkbox($_POST['show_aut'], '1'); 
+        $sanitized_value = prefix_sanitize_checkbox( sanitize_text_field( wp_unslash( $_POST['show_aut'] ) ), '1' ); 
         if($sanitized_value =='1') {
             $showlist[1] ="Author";
         }
     }
     
     if(array_key_exists( 'show_tit' , $_POST ))  {
-        $sanitized_value = prefix_sanitize_checkbox($_POST['show_tit'], '1');
+        $sanitized_value = prefix_sanitize_checkbox( sanitize_text_field( wp_unslash( $_POST['show_tit'] ) ), '1' );
         if($sanitized_value =='1') {
             $showlist[2] ="Title";
         }
@@ -194,7 +199,7 @@ function ACT_processform()
 
     /** singleuser **/
     if(array_key_exists( 'single' , $_POST )) {
-        $sanitized_value = prefix_sanitize_checkbox($_POST['single'], '1');
+        $sanitized_value = prefix_sanitize_checkbox( sanitize_text_field( wp_unslash( $_POST['single'] ) ), '1' );
         if($sanitized_value =='1') {
             $sc = $sc." singleuser=1";
         }
@@ -202,41 +207,47 @@ function ACT_processform()
     
     /** is admin included? **/
     if(array_key_exists( 'include_admin' , $_POST ))  {
-            $sanitized_value = prefix_sanitize_checkbox($_POST['include_admin'], '1');
+            $sanitized_value = prefix_sanitize_checkbox( sanitize_text_field( wp_unslash( $_POST['include_admin'] ) ), '1' );
             if($sanitized_value =='1') {
                 $sc = $sc." admin=1";
             }
     }
     
         /** Limit output **/
-    if (filter_var($_POST['limit_cat'], FILTER_VALIDATE_INT) == true) {
-        if ($_POST['limit_cat']>0) {
-            $sc = $sc." postspercategory=".wp_strip_all_tags($_POST['limit_cat']);
+    if ( isset( $_POST['limit_cat'] ) ) {
+        $limit_cat = absint( wp_unslash( $_POST['limit_cat'] ) );
+
+        if ( $limit_cat > 0 ) {
+            $sc = $sc . ' postspercategory=' . $limit_cat;
         }
     }
   
-    if (filter_var($_POST['limit_aut'], FILTER_VALIDATE_INT) == true) {
-            if ($_POST['limit_aut']>0) {
-                $sc = $sc." postsperauthor=".wp_strip_all_tags($_POST['limit_aut']);
+    if ( isset( $_POST['limit_aut'] ) ) {
+            $limit_aut = absint( wp_unslash( $_POST['limit_aut'] ) );
+
+            if ( $limit_aut > 0 ) {
+                $sc = $sc . ' postsperauthor=' . $limit_aut;
             }
     }
     
-    if (filter_var($_POST['limit_tit'], FILTER_VALIDATE_INT) == true) {
-            if ($_POST['limit_tit']>0) {
-                $sc = $sc." totalpoststitle=".wp_strip_all_tags($_POST['limit_tit']);
+    if ( isset( $_POST['limit_tit'] ) ) {
+            $limit_tit = absint( wp_unslash( $_POST['limit_tit'] ) );
+
+            if ( $limit_tit > 0 ) {
+                $sc = $sc . ' totalpoststitle=' . $limit_tit;
             }
     }
     
     /** Post order  **/
     if(array_key_exists( 'reverse_date' , $_POST )) {
-        $sanitized_value = prefix_sanitize_checkbox($_POST['reverse_date'], '1');
+        $sanitized_value = prefix_sanitize_checkbox( sanitize_text_field( wp_unslash( $_POST['reverse_date'] ) ), '1' );
         if($sanitized_value =='1') {
             $sc = $sc." reverse-date=1";
         }
     }
 
     if(array_key_exists( 'postdate' , $_POST )) {
-        $sanitized_value = prefix_sanitize_checkbox($_POST['postdate'], '1');
+        $sanitized_value = prefix_sanitize_checkbox( sanitize_text_field( wp_unslash( $_POST['postdate'] ) ), '1' );
         if($sanitized_value =='1') {
             $sc = $sc." postdate=1";
         }
@@ -245,7 +256,7 @@ function ACT_processform()
     /** Excluded Categories **/
     $cat_array = array();
     if(array_key_exists( 'cat' , $_POST )) {
-        $cat=$_POST['cat'];
+        $cat = array_map( 'absint', wp_unslash( $_POST['cat'] ) );
             foreach ($cat as $key => $val) {
             array_push($cat_array,$val);
         }
@@ -254,7 +265,7 @@ function ACT_processform()
     }
 
     /** Sanitize total_cats */
-    if (filter_var($_POST['total_cats'], FILTER_VALIDATE_INT) == false) {
+    if ( ! isset( $_POST['total_cats'] ) || absint( wp_unslash( $_POST['total_cats'] ) ) === 0 ) {
         $_POST['total_cats'] = 0;
     }
     

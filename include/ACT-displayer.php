@@ -1,5 +1,11 @@
 <?php
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+
+
 /*****************************************************************
 *
 * 
@@ -56,7 +62,13 @@ function ACT_hierarchy_indexes($atts)
     endif;
     
     if (!$firstrun ){
-        if ( ! isset( $_POST['ACT_nonce_display'] )  || ! wp_verify_nonce( $_POST['ACT_nonce_display'], 'ACT_form_displayer' )) {
+        if (
+            ! isset( $_POST['ACT_nonce_display'] ) ||
+            ! wp_verify_nonce(
+                    sanitize_text_field( wp_unslash( $_POST['ACT_nonce_display'] ) ),
+                    'ACT_form_displayer'
+            )
+        ) {
                 // Nonce is not valid, handle the error
                 die("Not authorized");
         }
