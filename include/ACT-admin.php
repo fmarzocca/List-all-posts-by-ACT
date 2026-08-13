@@ -137,8 +137,9 @@ function ACT_list_categories()
     foreach ($categories as $category) {
         if (!$category->parent) {
             $i++;
-            echo ('<input id=cat[] name=cat[] class="element checkbox" type = "checkbox" value="'.esc_html($category->slug).'" />');
-            echo ('<label class="choice" for=cat[]>'.esc_html($category->name).'</label>');
+            $category_id = 'cat-' . $category->term_id;
+            echo '<input id="' . esc_attr( $category_id ) . '" name="cat[]" class="element checkbox" type="checkbox" value="' . esc_attr( $category->slug ) . '" />';
+            echo '<label class="choice" for="' . esc_attr( $category_id ) . '">' . esc_html( $category->name ) . '</label>';
             $i = ACT_get_child_cats( $category->term_id, $i, " ");
         }
     }
@@ -152,8 +153,9 @@ function ACT_get_child_cats($cat, $k, $level)
         $level .= "&#8212;";
         foreach ($next as $category) :
             $k++;
-            echo ('<input id=cat[] name=cat[] class="element checkbox" type = "checkbox" value="'.esc_html($category->slug).'" />');
-            echo ('<label class="choice" for=cat[]> '.esc_html($level).' '.esc_html($category->name).'</label>');
+            $category_id = 'cat-' . $category->term_id;
+            echo '<input id="' . esc_attr( $category_id ) . '" name="cat[]" class="element checkbox" type="checkbox" value="' . esc_attr( $category->slug ) . '" />';
+            echo '<label class="choice" for="' . esc_attr( $category_id ) . '">' . esc_html( $level ) . ' ' . esc_html( $category->name ) . '</label>';
 
             $k = ACT_get_child_cats( $category->term_id, $k, $level);
         endforeach;
@@ -163,12 +165,18 @@ function ACT_get_child_cats($cat, $k, $level)
 
 function ACT_processform()
 {
-    if ( isset( $_POST['ACT_nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['ACT_nonce'] ) ), 'ACT_form_shortcode' ) ) {
-        // Nonce is valid, process the form data
-       } else {
-        // Nonce is not valid, handle the error
-        die("Not authorized");
-       }
+    $nonce = '';
+    if ( isset( $_POST['ACT_nonce'] ) && is_scalar( $_POST['ACT_nonce'] ) ) {
+        $nonce = sanitize_text_field( wp_unslash( $_POST['ACT_nonce'] ) );
+    }
+
+    if (
+        '' === $nonce ||
+        ! wp_verify_nonce( $nonce, 'ACT_form_shortcode' ) ||
+        ! current_user_can( 'manage_options' )
+    ) {
+        wp_die( esc_html__( 'Not authorized', 'list-all-posts-by-authors-nested-categories-and-titles' ) );
+    }
     $sc = "[ACT-list";
     
     /* Show List */
@@ -255,13 +263,19 @@ function ACT_processform()
 	
     /** Excluded Categories **/
     $cat_array = array();
-    if(array_key_exists( 'cat' , $_POST )) {
-        $cat = array_map( 'absint', wp_unslash( $_POST['cat'] ) );
-            foreach ($cat as $key => $val) {
-            array_push($cat_array,$val);
+    $submitted_categories = filter_input( INPUT_POST, 'cat', FILTER_DEFAULT, FILTER_REQUIRE_ARRAY );
+    if ( is_array( $submitted_categories ) ) {
+        foreach ( $submitted_categories as $value ) {
+            if ( is_scalar( $value ) ) {
+                $slug = sanitize_title( wp_unslash( (string) $value ) );
+                if ( '' !== $slug ) {
+                    $cat_array[] = $slug;
+                }
+            }
         }
-        $cat_string = implode(",", $cat_array);
-        $sc = $sc." exclude='".$cat_string."'";
+        if ( $cat_array ) {
+            $sc = $sc . " exclude='" . implode( ',', $cat_array ) . "'";
+        }
     }
 
     /** Sanitize total_cats */

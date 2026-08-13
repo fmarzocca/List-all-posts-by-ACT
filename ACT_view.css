@@ -242,7 +242,7 @@ form hr
 
 form li.section_break
 {
-	//border-top:1px dotted #ccc;
+	/* border-top:1px dotted #ccc; */
 	margin-top:9px;
 	padding-bottom:0;
 	padding-left:9px;
@@ -361,7 +361,7 @@ input.currency
 	text-align:right;
 }
 
-input [type=checkbox]
+input[type=checkbox]
 {
 	display:block;
 	height:13px;
@@ -370,7 +370,7 @@ input [type=checkbox]
 	width:13px;
 }
 
-input [type=radio]
+input[type=radio]
 {
 	display:block;
 	height:13px;
@@ -615,6 +615,5 @@ form li:hover .guidelines
 	margin:0px 0px 0;
 	
 }
-
 
 

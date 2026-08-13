@@ -21,9 +21,12 @@ function ACT_hierarchy_indexes($atts)
 {
     global $firstrun;
 
-    if (!isset($_POST['order'])) {
-        $firstrun = 1;
-        $_POST['order']="category";
+    $has_order = isset( $_POST['order'] ) && is_scalar( $_POST['order'] );
+    $firstrun = ! $has_order;
+    $order = $has_order ? sanitize_key( wp_unslash( $_POST['order'] ) ) : 'category';
+
+    if ( $firstrun ) {
+        $order = 'category';
     }
 
 
@@ -41,17 +44,17 @@ function ACT_hierarchy_indexes($atts)
         <div align="center" class="styled-select"><?php esc_html_e("Group by:", 'list-all-posts-by-authors-nested-categories-and-titles') ?> 
           <select name="order"  id="order"  onChange=" ;this.form.submit();">
             <?php if (!($atts['singleuser']) and strpos($atts['show'], "Author") !== false) : ?>
-            <option value="author" <?php if ($_POST['order']  == "author") {
+            <option value="author" <?php if ($order == "author") {
                 echo "selected";
                                    } ?>><?php esc_html_e("Author", 'list-all-posts-by-authors-nested-categories-and-titles'); ?> </option>
             <?php endif; ?>
             <?php if (strpos($atts['show'], "Title") !== false) : ?>
-            <option value="title" <?php if ($_POST['order']  == "title") {
+            <option value="title" <?php if ($order == "title") {
                 echo "selected";
                                   } ?>><?php esc_html_e("Title", 'list-all-posts-by-authors-nested-categories-and-titles'); ?> </option>
             <?php endif; ?>
                 <?php if (strpos($atts['show'], "Category") !== false) : ?>
-            <option value="category" <?php if ($_POST['order']  == "category") {
+            <option value="category" <?php if ($order == "category") {
                 echo "selected";
                                      } ?>><?php esc_html_e("Category", 'list-all-posts-by-authors-nested-categories-and-titles'); ?> </option>
                 <?php endif; ?>
@@ -76,16 +79,16 @@ function ACT_hierarchy_indexes($atts)
     }
 
     if (count(explode(",", $atts['show'])) == 1) :
-        $_POST['order'] = strtolower($atts['show']);
+        $order = strtolower( $atts['show'] );
     endif;
     
     if (count(explode(",", $atts['show'])) == 2 and strpos($atts['show'], "Category") === false) :
-        $_POST['order'] = "author";
+        $order = 'author';
     endif;
 
-    if ($_POST['order']  == "author") {
+    if ($order == "author") {
         ACT_byauthor($atts);
-    } elseif ($_POST['order']  == "title") {
+    } elseif ($order == "title") {
         ACT_bytitle($atts);
     } else {
         ACT_bycategory($atts);
@@ -95,24 +98,43 @@ function ACT_hierarchy_indexes($atts)
     ob_end_clean();
     return $output_string;
 }
+
+function ACT_get_excluded_category_slugs( $exclude )
+{
+    if ( ! is_scalar( $exclude ) ) {
+        return array();
+    }
+
+    $slugs = array();
+    foreach ( explode( ',', (string) $exclude ) as $value ) {
+        $slug = sanitize_title( trim( $value ) );
+        if ( '' !== $slug ) {
+            $slugs[] = $slug;
+        }
+    }
+
+    return array_values( array_unique( $slugs ) );
+}
     
 function ACT_bycategory($atts)
 {
+    $excluded_slugs = ACT_get_excluded_category_slugs( $atts['exclude'] );
+
     /* Start browsing categories*/
     foreach (get_categories('hide_empty=0') as $cat) :
-        if (strpos($atts['exclude'], $cat->slug)!== false) :
+        if ( in_array( $cat->slug, $excluded_slugs, true ) ) :
             continue;
         endif;
     
         if (!$cat->parent) {
-             echo "<h4><a href='".esc_html(get_category_link($cat))."'>".esc_html($cat->name)."</a></h4><ul>";
-            ACT_traverse_cat_tree( $cat->term_id, $atts);
+             echo "<h4><a href='" . esc_url( get_category_link( $cat ) ) . "'>" . esc_html( $cat->name ) . "</a></h4><ul>";
+            ACT_traverse_cat_tree( $cat->term_id, $atts, $excluded_slugs );
         }
     endforeach;
 }
 
 
-function ACT_traverse_cat_tree($cat, $atts)
+function ACT_traverse_cat_tree($cat, $atts, $excluded_slugs = array())
 {
     $postargs = array(
         'public'   => true,
@@ -140,7 +162,7 @@ function ACT_traverse_cat_tree($cat, $atts)
             }
             echo '<li class="subpost">';
            $postdate = date_i18n( get_option( 'date_format' ), strtotime($post->post_date)).' - ';
-    echo ($atts['postdate'] ? esc_html($postdate) : ''). '<a href="' . esc_html(get_permalink( $post->ID) ) . '">' . esc_html($post->post_title) . '</a>';
+    echo ($atts['postdate'] ? esc_html($postdate) : ''). '<a href="' . esc_url( get_permalink( $post->ID ) ) . '">' . esc_html($post->post_title) . '</a>';
             if (!($atts['singleuser'])) :
                 echo "<span class='righttext'>[".esc_html(get_the_author_meta( 'first_name', $post->post_author ))." ".esc_html(get_the_author_meta( 'last_name', $post->post_author ))."]</span>";
             endif;
@@ -158,11 +180,11 @@ function ACT_traverse_cat_tree($cat, $atts)
  
     if ($next) :
         foreach ($next as $cat) :
-            if (strpos($atts['exclude'], $cat->slug)!== false) :
+            if ( in_array( $cat->slug, $excluded_slugs, true ) ) :
                 continue;
             endif;
-               echo "<ul><li class='subcat'><a href='".esc_html(get_category_link($cat))."'>".esc_html($cat->name)."</a></li>";
-              ACT_traverse_cat_tree( $cat->term_id, $atts);
+               echo "<ul><li class='subcat'><a href='" . esc_url( get_category_link( $cat ) ) . "'>" . esc_html( $cat->name ) . "</a></li>";
+              ACT_traverse_cat_tree( $cat->term_id, $atts, $excluded_slugs );
         endforeach;
     endif;
     echo '</ul>';
@@ -179,14 +201,13 @@ function ACT_bytitle($atts)
 
     array_push($post_types, 'post');
 
-    if ($atts['totalpoststitle'] > -1) {
-        $args = array(  'posts_per_page' => -1, 'post_type' => $post_types);
-    } else {
-        $args = array(  'posts_per_page' => -1,
-                    'orderby' => 'title' ,
-                    'post_type' => $post_types,
-                    'order' => 'ASC');
-    }
+    $args = array(
+        'posts_per_page' => -1,
+        'orderby'        => 'title',
+        'post_type'      => $post_types,
+        'order'          => 'ASC'
+    );
+    $excluded_slugs = ACT_get_excluded_category_slugs( $atts['exclude'] );
     $articles = get_posts($args);
     echo "<h4></h4>";
     if ($articles) :
@@ -194,7 +215,7 @@ function ACT_bytitle($atts)
         $i = 0;
         foreach ($articles as $article) :
         /* excluded categories  */
-            if (has_category(explode(',', $atts['exclude']), $article->ID)) :
+            if ( $excluded_slugs && has_category( $excluded_slugs, $article->ID ) ) :
                 continue;
             endif;
             
@@ -206,7 +227,7 @@ function ACT_bytitle($atts)
             }
             echo '<li>';
             $postdate = date_i18n( get_option( 'date_format' ), strtotime($article->post_date)).' - ';
-            echo ($atts['postdate'] ? esc_html($postdate) : '').'<a href="' . esc_html(get_permalink( $article->ID )) . '">' . esc_html($article->post_title) . '</a>';
+            echo ($atts['postdate'] ? esc_html($postdate) : '').'<a href="' . esc_url( get_permalink( $article->ID ) ) . '">' . esc_html($article->post_title) . '</a>';
             if (!($atts['singleuser'])) :
                 echo "<span class='righttext'>[".esc_html(get_the_author_meta( 'first_name', $article->post_author ))." ".esc_html(get_the_author_meta( 'last_name', $article->post_author ))."]</span>";
             else :
@@ -234,6 +255,7 @@ function ACT_byauthor($atts)
 {
     $param = 'blog_id=1&orderby=nicename';
     $autori= get_users( $param );
+    $excluded_slugs = ACT_get_excluded_category_slugs( $atts['exclude'] );
 
     foreach ($autori as $user) :
         /*check if excluded admin */
@@ -260,16 +282,14 @@ function ACT_byauthor($atts)
             'author'        =>  $user->ID,
             'post_type'   => $post_types,
             'posts_per_page' =>  -1,
-            'category__not_in' => get_cats_by_slug(explode(',', $atts['exclude']))
+            'order'         => $ordering,
+            'category__not_in' => get_cats_by_slug( $excluded_slugs )
                 );
-        if ($atts['postsperauthor'] == -1) {
-            array_push($args,'order',$ordering );
-        }
             $author_posts=  get_posts( $args );
         if (!$author_posts) :
             continue;
         endif;
-            echo '<h4><a href="'.esc_html(get_author_posts_url($user->ID)).'">'.esc_html($user->display_name).'</a></h4>';
+            echo '<h4><a href="' . esc_url( get_author_posts_url( $user->ID ) ) . '">' . esc_html( $user->display_name ) . '</a></h4>';
     
         if ($author_posts) {
             echo '<ul>';
@@ -277,7 +297,7 @@ function ACT_byauthor($atts)
             foreach ($author_posts as $author_post) {
                 $postdate = date_i18n( get_option( 'date_format' ), strtotime($author_post->post_date)).' - ';  
                 echo '<li>';
-                echo ($atts['postdate'] ? esc_html($postdate) : ''). '<a href="' . esc_html(get_permalink( $author_post->ID )) . '">'.esc_html($author_post->post_title).'</a>';
+                echo ($atts['postdate'] ? esc_html($postdate) : ''). '<a href="' . esc_url( get_permalink( $author_post->ID ) ) . '">'.esc_html($author_post->post_title).'</a>';
                 $categories = get_the_category( $author_post->ID );
                 $list_cats =null;
                 foreach ($categories as $cat) :
@@ -301,8 +321,11 @@ function ACT_byauthor($atts)
 function get_cats_by_slug($catslugs) {
     $catids = array();
     foreach($catslugs as $slug) {
-        if (!get_category_by_slug($slug) ) break;
-        $catids[] = get_category_by_slug($slug)->term_id;
+        $category = get_category_by_slug( $slug );
+        if ( ! $category ) {
+            continue;
+        }
+        $catids[] = $category->term_id;
     }
     return $catids;
 }
